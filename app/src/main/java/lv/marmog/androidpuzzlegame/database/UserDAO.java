@@ -1,6 +1,5 @@
 package lv.marmog.androidpuzzlegame.database;
 
-
 import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.COLUMN_ID;
 import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.COLUMN_USER_ID;
 import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.TABLE_TIMER;
@@ -9,108 +8,67 @@ import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.TABLE_USERS;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
-import android.provider.ContactsContract;
 import android.util.Log;
 
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserDAO {
-    //Fields
-    private SQLiteDatabase database;
-    private DatabaseHelper dbHelper;
-    private String[] allColumns = {
-            DatabaseHelper.COLUMN_ID,
-            DatabaseHelper.COLUMN_USERNAME};
+import lv.marmog.androidpuzzlegame.model.User;
 
-    //Constructor
-    public UserDAO() {
-    }
+public class UserDAO {
+    private final SQLiteDatabase database;
+    private final String[] allColumns = { DatabaseHelper.COLUMN_ID, DatabaseHelper.COLUMN_USERNAME };
 
     public UserDAO(Context context) {
-        dbHelper = new DatabaseHelper(context);
-
+        this(new DatabaseHelper(context));
     }
 
-    public void open() throws SQLException {
-        database = dbHelper.getWritableDatabase();
+    // test-only seam: lets tests inject a fake/mocked DatabaseProvider without a real Context
+    UserDAO(DatabaseProvider dbProvider) {
+        this.database = dbProvider.getWritableDatabase();
     }
 
-    public void close() {
-        dbHelper.close();
-    }
-
-    //Method that insert data into database - creating new username
     public boolean createUser(User username) {
 
         ContentValues contentValues = new ContentValues();
-
         contentValues.put(DatabaseHelper.COLUMN_USERNAME, username.getUsername());
         long insertID = database.insert(TABLE_USERS, null, contentValues);
         Cursor cursor = database.query(TABLE_USERS, allColumns,
-                DatabaseHelper.COLUMN_ID + " = " + insertID, null, null, null, null);
+                DatabaseHelper.COLUMN_ID + " = ?", new String[] { String.valueOf(insertID) }, null, null, null);
         cursor.moveToLast();
         User newUser = cursorToUser(cursor);
         cursor.close();
 
         if (insertID == -1) {
-            Log.e(UserDAO.class.getName(), "New user was NOT created");
+            Log.e(UserDAO.class.getSimpleName(), "New user was NOT created");
             return false;
-        } else {
-            Log.i(UserDAO.class.getName(), "New user was created");
-            return true;
         }
-
-
-    }
-
-    //Method that check username in the database
-    public Boolean checkUsername(String username) {
-
-        Cursor cursor = database.rawQuery("Select * from " + TABLE_USERS + " where username = ?", new String[]{username});
-        if (cursor.getCount() > 0) {
+        else {
+            Log.i(UserDAO.class.getSimpleName(), "New user was created");
             return true;
-        } else {
-            return false;
         }
     }
 
+    public boolean checkUsername(String username) {
+        Cursor cursor =
+                database.rawQuery("Select * from " + TABLE_USERS + " where username = ?", new String[] { username });
+        boolean exists = cursor.getCount() > 0;
+        cursor.close();
+        return exists;
+    }
 
-    //Method that delete user from the database
-//    public Boolean deleteUser(int id) {
-//
-//        String queryString = "DELETE FROM " + TABLE_USERS + " WHERE " + COLUMN_ID + " = " + id;
-//        Cursor cursor2 = database.rawQuery(queryString, null);
-//        if (cursor2.moveToFirst()) {
-//            return true;
-//        } else {
-//            return false;
-//        }
-//    }
-
-    public Boolean deleteUser(User user) {
-
-        String queryString = "DELETE FROM " + TABLE_USERS + " WHERE " + COLUMN_ID + " = " + user.getUsernameId();
-        Cursor cursor2 = database.rawQuery(queryString, null);
-        if (cursor2.moveToFirst()) {
-            return true;
-        } else {
-            return false;
-        }
+    public boolean deleteUser(User user) {
+        int rows =
+                database.delete(TABLE_USERS, COLUMN_ID + " = ?", new String[] { String.valueOf(user.getUsernameId()) });
+        return rows > 0;
     }
 
     // --- need to delete from timer database
-    public Boolean deleteResults(User user) {
-        String queryStringToDeleteFromTimer = "DELETE FROM " + TABLE_TIMER + " WHERE " + COLUMN_USER_ID + " = " + user.getUsernameId();
-        Cursor cursor1 = database.rawQuery(queryStringToDeleteFromTimer, null);
-        if (cursor1.moveToLast()) {
-            return true;
-        } else {
-            return false;
-        }
+    public boolean deleteResults(User user) {
+        int rows = database.delete(TABLE_TIMER,
+                COLUMN_USER_ID + " = ?", new String[] { String.valueOf(user.getUsernameId()) });
+        return rows > 0;
     }
 
     //Method that show us all the users we have in database
@@ -128,6 +86,7 @@ public class UserDAO {
             userList.add(user);
             cursor.moveToNext();
         }
+        cursor.close();
         return userList;
     }
 
@@ -145,8 +104,11 @@ public class UserDAO {
     //method that gives us user by id
     public User getUserById(int id) {
 
-        Cursor cursor = database.query(TABLE_USERS, allColumns, DatabaseHelper.COLUMN_ID + " = " + id, null, null, null, null);
-        return (cursor.moveToFirst()) ? cursorToUser(cursor) : null;
+        Cursor cursor = database.query(TABLE_USERS, allColumns,
+                DatabaseHelper.COLUMN_ID + " = ?", new String[] { String.valueOf(id) }, null, null, null);
+        User user = cursor.moveToFirst() ? cursorToUser(cursor) : null;
+        cursor.close();
+        return user;
     }
 }
 

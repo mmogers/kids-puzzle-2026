@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_beige3"
-    tools:context=".ScoreActivity">
+    tools:context=".ui.ScoreActivity">
 
     <TextView
         android:id="@+id/congratulation_text"
@@ -112,17 +112,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/best_time_text" />
-
-    <!--    <Button-->
-    <!--        android:id="@+id/exit_btn"-->
-    <!--        android:layout_width="wrap_content"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:layout_marginStart="5dp"-->
-    <!--        android:layout_marginBottom="5dp"-->
-    <!--        android:onClick="goToMenu"-->
-    <!--        android:text="@string/exit_btn"-->
-    <!--        app:layout_constraintBottom_toBottomOf="parent"-->
-    <!--        app:layout_constraintStart_toStartOf="parent" />-->
 
     <Button
         android:id="@+id/next_btn"

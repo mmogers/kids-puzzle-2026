@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="lv.marmog.androidpuzzlegame">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <application
         android:allowBackup="true"
@@ -13,19 +12,19 @@
         android:theme="@style/Theme.Design.NoActionBarMy">
 
         <activity
-            android:name=".ScoreActivity"
+            android:name=".ui.ScoreActivity"
             android:exported="false" />
         <activity
-            android:name=".GridViewActivity"
+            android:name=".ui.GridViewActivity"
             android:exported="false" />
         <activity
-            android:name=".CreateUsernameActivity"
+            android:name=".ui.CreateUsernameActivity"
             android:exported="false" />
         <activity
-            android:name=".ComplexityActivity"
+            android:name=".ui.ComplexityActivity"
             android:exported="false" />
         <activity
-            android:name=".StartActivity"
+            android:name=".ui.StartActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
@@ -33,16 +32,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".PuzzleActivity" />
-
-        <provider
-            android:authorities="${applicationId}.fileprovider"
-            android:name="androidx.core.content.FileProvider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths"></meta-data>
-        </provider>
+        <activity android:name=".ui.PuzzleActivity" />
     </application>
 </manifest>

@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_beige3"
     android:orientation="vertical"
-    tools:context=".CreateUsernameActivity">
+    tools:context=".ui.CreateUsernameActivity">
 
     <ImageView
         android:id="@+id/logo_create_username"

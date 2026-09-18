@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/puzzle_bg_narrower"
     android:orientation="vertical"
-    tools:context=".StartActivity">
+    tools:context=".ui.StartActivity">
 
 
     <ImageView

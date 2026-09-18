@@ -1,81 +1,68 @@
 package lv.marmog.androidpuzzlegame.database;
 
-import android.content.ContentValues;
 import android.content.Context;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import java.util.ArrayList;
-import java.util.List;
+// Schema is intentionally not public: nothing outside this package should build raw SQL
+// against these tables directly. Go through UserDAO / TimerDAO instead.
+public class DatabaseHelper extends SQLiteOpenHelper implements DatabaseProvider {
+    static final String DATABASE_NAME = "users.db";
+    static final int DATABASE_VERSION = 2;
+    // Users table
+    static final String TABLE_USERS = "users";
+    static final String COLUMN_ID = "id";
+    static final String COLUMN_USERNAME = "username";
+    // Timer table
+    static final String TABLE_TIMER = "timer";
+    static final String COLUMN_TIMER_RESULT_FOR_4 = "timer_result_for_4";
+    static final String COLUMN_TIMER_RESULT_FOR_9 = "timer_result_for_9";
+    static final String COLUMN_TIMER_RESULT_FOR_12 = "timer_result_for_12";
+    static final String COLUMN_USER_ID = "user_id";
 
-public class  DatabaseHelper extends SQLiteOpenHelper {
-    //Database name
-    public static final String DATABASE_NAME = "users.db";
-    //DB version
-    public static final int DATABASE_VERSION = 1;
-    //CONSTANT VARIABLES - TABLE AND COLUMNS
-    public static final String TABLE_USERS = "USERS";
-    public static final String COLUMN_ID = "ID";
-    public static final String COLUMN_USERNAME = "USERNAME";
-    public static final String TABLE_TIMER = "TIMER";
-    public static final String COLUMN_TIMER_RESULT_FOR_2 = "timer_result_for_2";
-    public static final String COLUMN_TIMER_RESULT_FOR_4 = "timer_result_for_4";
-    public static final String COLUMN_TIMER_RESULT_FOR_6 = "timer_result_for_6";
-    public static final String COLUMN_TIMER_RESULT_FOR_9 = "timer_result_for_9";
-    public static final String COLUMN_TIMER_RESULT_FOR_12 = "timer_result_for_12";
-    public static final String COLUMN_USER_ID = "user_id";
-
-    public DatabaseHelper(Context context){
+    public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
-    //First time is creating a table for database.
     @Override
     public void onCreate(SQLiteDatabase db) {
-        //Users table with id and username
-      String sqlUsers = "CREATE TABLE " + TABLE_USERS + " ( " + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-              COLUMN_USERNAME + " TEXT UNIQUE);";
-
-      //timer table with foreign key to users id and saving results for every level(puzzle pieces amount)
-      String sqlTimer = "CREATE TABLE " + TABLE_TIMER + "(" + COLUMN_TIMER_RESULT_FOR_2 + " INTEGER, " +
-              COLUMN_TIMER_RESULT_FOR_4 + " INTEGER, " +
-              COLUMN_TIMER_RESULT_FOR_6 + " INTEGER, " +
-              COLUMN_TIMER_RESULT_FOR_9 + " INTEGER, " +
-              COLUMN_TIMER_RESULT_FOR_12 + " INTEGER, " +
-              COLUMN_USER_ID + " INTEGER, FOREIGN KEY(user_id) REFERENCES users(id));";
-
-      db.execSQL(sqlUsers);
-      db.execSQL(sqlTimer);
+        createUsersTable(db);
+        createTimerTable(db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        dropTimerTable(db);
+        dropUsersTable(db);
 
-    String sqlUsers = "DROP TABLE IF EXISTS " + TABLE_USERS;
-    String sqlTimer = "DROP TABLE IF EXISTS " + TABLE_TIMER;
+        onCreate(db);
 
-    db.execSQL(sqlTimer);
-    db.execSQL(sqlUsers);
-
-    onCreate(db);
-
-        Log.w(DatabaseHelper.class.getName(), "Upgrading database from version " + oldVersion + " to "
-                + newVersion + " , which will destroy all old data");
+        Log.w(DatabaseHelper.class.getName(), "Upgrading database from version " + oldVersion + " to " + newVersion
+                + " , which will destroy all old data");
     }
 
-//    //Method that check username in the database
-//    public Boolean checkUsername(String username){
-//
-//    SQLiteDatabase db = this.getWritableDatabase();
-//        Cursor cursor = db.rawQuery("Select * from "+ TABLE_USERS + " where username = ?", new String[] {username});
-//        if(cursor.getCount()>0){
-//            return true;}
-//        else{
-//            return false;}
-//    }
+    private void createUsersTable(SQLiteDatabase db) {
+        String sql = "CREATE TABLE " + TABLE_USERS + " (" + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + COLUMN_USERNAME + " TEXT UNIQUE" + ")";
 
+        db.execSQL(sql);
+    }
 
+    private void createTimerTable(SQLiteDatabase db) {
+        String sql = "CREATE TABLE " + TABLE_TIMER + " (" + COLUMN_TIMER_RESULT_FOR_4 + " INTEGER, "
+                + COLUMN_TIMER_RESULT_FOR_9 + " INTEGER, " + COLUMN_TIMER_RESULT_FOR_12 + " INTEGER, " + COLUMN_USER_ID
+                + " INTEGER, " + "FOREIGN KEY (" + COLUMN_USER_ID + ") " + "REFERENCES " + TABLE_USERS + " ("
+                + COLUMN_ID + ")" + ")";
 
+        db.execSQL(sql);
+    }
+
+    private void dropUsersTable(SQLiteDatabase db) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
+    }
+
+    private void dropTimerTable(SQLiteDatabase db) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_TIMER);
+    }
 }
