@@ -21,8 +21,6 @@ public class ScoreActivity extends AppCompatActivity {
     private TextView kidName;
     private int userId, level, time;
     private String username;
-    //Button to go to the StartActivity
-    private FloatingActionButton goHome;
 
     private TimerDAO timerDAO;
 
@@ -36,11 +34,11 @@ public class ScoreActivity extends AppCompatActivity {
         timerDAO = new TimerDAO(this);
 
         // show timer result from puzzleActivity
-        yourTime = (TextView) findViewById(R.id.your_time);
+        this.yourTime = (TextView) findViewById(R.id.your_time);
         String timeString = String.valueOf(getTime());
         yourTime.setText(timeString + " seconds");
 
-        kidName = (TextView) findViewById(R.id.kid_name);
+        this.kidName = (TextView) findViewById(R.id.kid_name);
         username = getUsername();
         Log.i(ScoreActivity.class.getName(), "Username for textview is " + username);
         kidName.setText(username + "!");
@@ -54,11 +52,11 @@ public class ScoreActivity extends AppCompatActivity {
         insertResult();
 
         //show best time
-        bestTime = (TextView) findViewById(R.id.best_time);
+        this.bestTime = (TextView) findViewById(R.id.best_time);
         bestTime.setText(showBestResult() + " seconds");
 
         //Button to go in StartActivity
-        goHome = findViewById(R.id.goHome);
+        FloatingActionButton goHome = findViewById(R.id.go_home);
         goHome.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

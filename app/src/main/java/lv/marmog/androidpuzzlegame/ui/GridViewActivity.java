@@ -33,23 +33,14 @@ import lv.marmog.androidpuzzlegame.R;
 import lv.marmog.androidpuzzlegame.adapter.AssetImageLoader;
 import lv.marmog.androidpuzzlegame.adapter.ImageAdapter;
 
-
 public class GridViewActivity extends AppCompatActivity {
 
-    //Button to go to the StartActivity
-     private FloatingActionButton goHome;
-
-     //picture from camera and gallery --------------------------------------------------------------
-
-    //-------------------------------------------------------------------picture from camera
-
     // complexity from complexity activity
-    int piecesIntent;
-    int columnsIntent;
-    int rowsIntent;
-    int userId;
-    String username;
-
+    private int piecesIntent;
+    private int columnsIntent;
+    private int rowsIntent;
+    private int userId;
+    private String username;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,28 +48,18 @@ public class GridViewActivity extends AppCompatActivity {
         setContentView(R.layout.activity_grid_view);
         setName();
 
-        // --- get complexity
         Intent getComplexity = getIntent();
-
-        piecesIntent = getComplexity.getIntExtra(Extras.PIECES_COUNT, 56);
-        columnsIntent = getComplexity.getIntExtra(Extras.COLUMNS, 8);
-        rowsIntent = getComplexity.getIntExtra(Extras.ROWS, 7);
-
-        userId = getComplexity.getIntExtra(Extras.USER_ID, 0);
-        username = getComplexity.getStringExtra(Extras.USERNAME);
+        this.piecesIntent = getComplexity.getIntExtra(Extras.PIECES_COUNT, 9);
+        this.columnsIntent = getComplexity.getIntExtra(Extras.COLUMNS, 3);
+        this.rowsIntent = getComplexity.getIntExtra(Extras.ROWS, 3);
+        this.userId = getComplexity.getIntExtra(Extras.USER_ID, 0);
+        this.username = getComplexity.getStringExtra(Extras.USERNAME);
 
         //Button to go to the StartActivity
-        goHome = findViewById(R.id.goHome);
-        goHome.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                goHome();
-            }
-        });
+        FloatingActionButton goHome = findViewById(R.id.go_home);
+        goHome.setOnClickListener(v -> goHome());
 
         Log.w(GridViewActivity.class.getName(), "User id is " + userId);
-
-        // --- /
 
         AssetImageLoader imageLoader = new AssetImageLoader(getAssets());
         try {
@@ -86,35 +67,25 @@ public class GridViewActivity extends AppCompatActivity {
 
             GridView grid = findViewById(R.id.grid);
             grid.setAdapter(new ImageAdapter(this));
-            grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                @Override
-                public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+            grid.setOnItemClickListener((adapterView, view, i, l) -> {
+                Intent intent = new Intent(getApplicationContext(), PuzzleActivity.class);
+                intent.putExtra(Extras.ASSET_NAME, files[i % files.length]);
 
+                // --- put extra for complexity
+                intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
+                intent.putExtra(Extras.COLUMNS, columnsIntent);
+                intent.putExtra(Extras.ROWS, rowsIntent);
 
-                    Intent intent = new Intent(getApplicationContext(), PuzzleActivity.class);
-                    intent.putExtra(Extras.ASSET_NAME, files[i % files.length]);
+                intent.putExtra(Extras.USER_ID, userId);
+                intent.putExtra(Extras.USERNAME, username);
+                Log.i(GridViewActivity.class.getName(), "Sent username is " + username);
 
-                    // --- put extra for complexity
-                    intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
-                    intent.putExtra(Extras.COLUMNS, columnsIntent);
-                    intent.putExtra(Extras.ROWS, rowsIntent);
-
-                    intent.putExtra(Extras.USER_ID, userId);
-                    intent.putExtra(Extras.USERNAME, username);
-                    Log.i(GridViewActivity.class.getName(), "Sent username is " + username);
-
-                    // --- extra for complexity
-
-                    startActivity(intent);
-                    finish();
-
-
-                }
+                startActivity(intent);
+                finish();
             });
         } catch (IOException e) {
-            Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT);
+            Toasts.show(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT);
         }
-
     }
 
     //picture from camera-------------------------------------------------------------------
@@ -165,15 +136,16 @@ public class GridViewActivity extends AppCompatActivity {
                 }
             });
 
-    //clickListner
     public void onImageFromCameraClick(View view) {
         if (new Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(getPackageManager()) == null) {
             return;
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
             requestWriteStoragePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        } else {
+        }
+        else {
             launchCamera();
         }
     }
@@ -181,7 +153,7 @@ public class GridViewActivity extends AppCompatActivity {
     private void launchCamera() {
         currentPhotoUri = createImageUri();
         if (currentPhotoUri == null) {
-            Toast.makeText(this, "Could not create image file", Toast.LENGTH_LONG).show();
+            Toasts.show(this, "Could not create image file", Toast.LENGTH_LONG);
             return;
         }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -199,14 +171,23 @@ public class GridViewActivity extends AppCompatActivity {
         }
         return getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
     }
-    //-------------------------------------------------------------------picture from camera
 
     public void onImageFromGalleryClick(View view) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            requestReadImagesPermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE);
-        } else {
+        String readImagesPermission = readImagesPermissionForThisDevice();
+        if (ContextCompat.checkSelfPermission(this, readImagesPermission) != PackageManager.PERMISSION_GRANTED) {
+            requestReadImagesPermission.launch(readImagesPermission);
+        }
+        else {
             launchGalleryPicker();
         }
+    }
+
+    // Android 13 (API 33) replaced READ_EXTERNAL_STORAGE with granular media permissions;
+    // apps targeting 33+ must request READ_MEDIA_IMAGES instead for gallery access to work.
+    private static String readImagesPermissionForThisDevice() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                ? Manifest.permission.READ_MEDIA_IMAGES
+                : Manifest.permission.READ_EXTERNAL_STORAGE;
     }
 
     private void launchGalleryPicker() {
@@ -222,15 +203,13 @@ public class GridViewActivity extends AppCompatActivity {
         finish();
     }
 
-    public void setName() {
+    private void setName() {
         Intent intent = getIntent();
         String nameString = intent.getStringExtra(Extras.USERNAME);
-        Log.i(GridViewActivity.class.getName(), "Name for textview is " + nameString);
-        TextView name = (TextView)findViewById(R.id.username_gridview);
+        Log.i(GridViewActivity.class.getName(), "Name for textview is " + nameString); //rivate static final String TAG
+        TextView name = findViewById(R.id.username_gridview);
         name.setText(nameString);
     }
-
-
 }
 
 

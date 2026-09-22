@@ -37,14 +37,14 @@ public class StartActivity extends AppCompatActivity {
         usernames = new ArrayList<User>(0);
         userDAO = new UserDAO(this);
 
-        usernamesListView = (ListView) findViewById(R.id.list_usernames);
+        this.usernamesListView = (ListView) findViewById(R.id.list_usernames);
 
         populateUsernamesList();
         usernamesListView.setOnItemClickListener(listViewListener);
 
         //value for buttons that is find by id that is created in layout
 //        btnLogin = (Button) findViewById(R.id.StartGame);
-        btnCreateNewUser = (Button) findViewById(R.id.createUsername);
+        this.btnCreateNewUser = (Button) findViewById(R.id.create_username);
 
         //setOnClickListener for buttons
         btnCreateNewUser.setOnClickListener(new View.OnClickListener() {
