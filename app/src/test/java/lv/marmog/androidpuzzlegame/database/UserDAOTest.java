@@ -1,34 +1,52 @@
 package lv.marmog.androidpuzzlegame.database;
 
-import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.content.ContentValues;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
 import lv.marmog.androidpuzzlegame.model.User;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class UserDAOTest extends TestCase {
+@ExtendWith(MockitoExtension.class)
+ class UserDAOTest {
 
-    private UserDAO newUserDAO(SQLiteDatabase database) {
-        DatabaseProvider dbProvider = mock(DatabaseProvider.class);
+    @Mock
+    private SQLiteDatabase database;
+    @Mock
+    private Cursor cursor;
+    @Mock
+    private DatabaseProvider dbProvider;
+
+    // built in setUp(), not @InjectMocks: the constructor stores dbProvider.getWritableDatabase(),
+    // so it must run after that's stubbed
+    private UserDAO userDAO;
+
+    @BeforeEach
+     void setUp() {
         when(dbProvider.getWritableDatabase()).thenReturn(database);
-        return new UserDAO(dbProvider);
+        userDAO = new UserDAO(dbProvider);
     }
 
-    public void testCreateUser_returnsTrue_whenInsertSucceeds() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testCreateUser_returnsTrue_whenInsertSucceeds() {
         when(database.insert(eq(DatabaseHelper.TABLE_USERS), isNull(), any(ContentValues.class)))
                 .thenReturn(1L);
         when(database.query(eq(DatabaseHelper.TABLE_USERS), any(String[].class), anyString(),
@@ -38,88 +56,78 @@ public class UserDAOTest extends TestCase {
         when(cursor.getInt(0)).thenReturn(1);
         when(cursor.getString(1)).thenReturn("alice");
 
-        UserDAO userDAO = newUserDAO(database);
         User user = new User();
         user.setUsername("alice");
 
         assertTrue(userDAO.createUser(user));
     }
 
-    public void testCreateUser_returnsFalse_whenInsertFails() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testCreateUser_returnsFalse_whenInsertFails() {
         when(database.insert(eq(DatabaseHelper.TABLE_USERS), isNull(), any(ContentValues.class)))
                 .thenReturn(-1L);
         when(database.query(eq(DatabaseHelper.TABLE_USERS), any(String[].class), anyString(),
                 any(String[].class), isNull(), isNull(), isNull()))
                 .thenReturn(cursor);
 
-        UserDAO userDAO = newUserDAO(database);
         User user = new User();
         user.setUsername("alice");
 
         assertFalse(userDAO.createUser(user));
     }
 
-    public void testCheckUsername_returnsTrue_whenUserExists() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testCheckUsername_returnsTrue_whenUserExists() {
         when(database.rawQuery(anyString(), any(String[].class))).thenReturn(cursor);
         when(cursor.getCount()).thenReturn(1);
-
-        UserDAO userDAO = newUserDAO(database);
 
         assertTrue(userDAO.checkUsername("alice"));
         verify(cursor).close();
     }
 
-    public void testCheckUsername_returnsFalse_whenUserDoesNotExist() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testCheckUsername_returnsFalse_whenUserDoesNotExist() {
         when(database.rawQuery(anyString(), any(String[].class))).thenReturn(cursor);
         when(cursor.getCount()).thenReturn(0);
-
-        UserDAO userDAO = newUserDAO(database);
 
         assertFalse(userDAO.checkUsername("nobody"));
     }
 
-    public void testDeleteUser_returnsTrue_whenARowWasDeleted() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
+    @Test
+     void testDeleteUser_returnsTrue_whenARowWasDeleted() {
         when(database.delete(eq(DatabaseHelper.TABLE_USERS), anyString(), any(String[].class)))
                 .thenReturn(1);
 
         User user = new User();
         user.setUsernameId(3);
 
-        assertTrue(newUserDAO(database).deleteUser(user));
+        assertTrue(userDAO.deleteUser(user));
     }
 
-    public void testDeleteUser_returnsFalse_whenNoRowWasDeleted() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
+    @Test
+     void testDeleteUser_returnsFalse_whenNoRowWasDeleted() {
         when(database.delete(eq(DatabaseHelper.TABLE_USERS), anyString(), any(String[].class)))
                 .thenReturn(0);
 
         User user = new User();
         user.setUsernameId(3);
 
-        assertFalse(newUserDAO(database).deleteUser(user));
+        assertFalse(userDAO.deleteUser(user));
     }
 
-    public void testDeleteResults_returnsTrue_whenARowWasDeleted() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
+    @Test
+     void testDeleteResults_returnsTrue_whenARowWasDeleted() {
         when(database.delete(eq(DatabaseHelper.TABLE_TIMER), anyString(), any(String[].class)))
                 .thenReturn(2);
 
         User user = new User();
         user.setUsernameId(3);
 
-        assertTrue(newUserDAO(database).deleteResults(user));
+        assertTrue(userDAO.deleteResults(user));
     }
 
-    public void testGetAllUsers_mapsEveryCursorRowToAUser() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testGetAllUsers_mapsEveryCursorRowToAUser() {
         when(database.query(eq(DatabaseHelper.TABLE_USERS), any(String[].class), isNull(),
                 isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(cursor);
@@ -128,7 +136,7 @@ public class UserDAOTest extends TestCase {
         when(cursor.getInt(0)).thenReturn(1, 2);
         when(cursor.getString(1)).thenReturn("alice", "bob");
 
-        List<User> users = newUserDAO(database).getAllUsers();
+        List<User> users = userDAO.getAllUsers();
 
         assertEquals(2, users.size());
         assertEquals("alice", users.get(0).getUsername());
@@ -136,9 +144,8 @@ public class UserDAOTest extends TestCase {
         verify(cursor).close();
     }
 
-    public void testGetUserById_returnsUser_whenFound() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testGetUserById_returnsUser_whenFound() {
         when(database.query(eq(DatabaseHelper.TABLE_USERS), any(String[].class), anyString(),
                 any(String[].class), isNull(), isNull(), isNull()))
                 .thenReturn(cursor);
@@ -146,20 +153,19 @@ public class UserDAOTest extends TestCase {
         when(cursor.getInt(0)).thenReturn(5);
         when(cursor.getString(1)).thenReturn("carol");
 
-        User user = newUserDAO(database).getUserById(5);
+        User user = userDAO.getUserById(5);
 
         assertEquals(5, user.getUsernameId());
         assertEquals("carol", user.getUsername());
     }
 
-    public void testGetUserById_returnsNull_whenNotFound() {
-        SQLiteDatabase database = mock(SQLiteDatabase.class);
-        Cursor cursor = mock(Cursor.class);
+    @Test
+     void testGetUserById_returnsNull_whenNotFound() {
         when(database.query(eq(DatabaseHelper.TABLE_USERS), any(String[].class), anyString(),
                 any(String[].class), isNull(), isNull(), isNull()))
                 .thenReturn(cursor);
         when(cursor.moveToFirst()).thenReturn(false);
 
-        assertNull(newUserDAO(database).getUserById(999));
+        assertNull(userDAO.getUserById(999));
     }
 }

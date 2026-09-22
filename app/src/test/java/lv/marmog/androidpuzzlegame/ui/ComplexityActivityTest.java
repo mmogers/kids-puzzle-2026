@@ -4,15 +4,21 @@ import android.content.Intent;
 import android.view.View;
 import android.widget.TextView;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
+import org.mockito.Mock;
 import org.mockito.MockedConstruction;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.lang.reflect.Method;
 
 import lv.marmog.androidpuzzlegame.R;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -21,31 +27,35 @@ import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ComplexityActivityTest {
+// LENIENT: not every test uses all of setUp()'s stubs (e.g. goHome() never calls getIntent())
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+ class ComplexityActivityTest {
 
-    private ComplexityActivity newActivity(int userId, String username) {
-        Intent receivedIntent = mock(Intent.class);
-        when(receivedIntent.getIntExtra(Extras.USER_ID, 0)).thenReturn(userId);
-        when(receivedIntent.getStringExtra(Extras.USERNAME)).thenReturn(username);
+    // CALLS_REAL_METHODS skips the real Activity constructor (needs a main Looper we don't have)
+    // while still running real method bodies
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
+    private ComplexityActivity activity;
+    @Mock
+    private Intent receivedIntent;
 
-        // mock(..., CALLS_REAL_METHODS) creates the instance without running the real
-        // AppCompatActivity/ComponentActivity constructor chain, which needs a real main
-        // Looper and would NPE outside a real Android runtime
-        ComplexityActivity activity = mock(ComplexityActivity.class, Answers.CALLS_REAL_METHODS);
+    @BeforeEach
+     void setUp() {
         doReturn(receivedIntent).when(activity).getIntent();
         doNothing().when(activity).startActivity(any(Intent.class));
         doNothing().when(activity).finish();
-        return activity;
     }
 
-    // onCreate() itself can't be driven directly here: it calls super.onCreate(), which
-    // needs AppCompatActivity/ComponentActivity internals only set up by the real
-    // constructor (skipped on purpose - see newActivity()) - that requires a real Android
-    // runtime or Robolectric. setName() doesn't touch super.onCreate() though, so it can
-    // be exercised directly via reflection.
+    private void configureIntent(int userId, String username) {
+        when(receivedIntent.getIntExtra(Extras.USER_ID, 0)).thenReturn(userId);
+        when(receivedIntent.getStringExtra(Extras.USERNAME)).thenReturn(username);
+    }
+
+    // onCreate() can't be called directly (super.onCreate() needs a real constructor); setName()
+    // doesn't touch it, so it's exercised via reflection instead
     @Test
-    public void setName_displaysTheUsernameFromTheIntent() throws Exception {
-        ComplexityActivity activity = newActivity(1, "bob");
+     void setName_displaysTheUsernameFromTheIntent() throws Exception {
+        configureIntent(1, "bob");
         TextView usernameView = mock(TextView.class);
         doReturn(usernameView).when(activity).findViewById(R.id.username_complexity);
 
@@ -57,22 +67,22 @@ public class ComplexityActivityTest {
     }
 
     @Test
-    public void selectPieces_fourPieces_startsGridViewActivityWithTwoByTwoGrid() {
+     void selectPieces_fourPieces_startsGridViewActivityWithTwoByTwoGrid() {
         assertSelectPiecesStartsGridView(4, 2, 2);
     }
 
     @Test
-    public void selectPieces_ninePieces_startsGridViewActivityWithThreeByThreeGrid() {
+     void selectPieces_ninePieces_startsGridViewActivityWithThreeByThreeGrid() {
         assertSelectPiecesStartsGridView(9, 3, 3);
     }
 
     @Test
-    public void selectPieces_twelvePieces_startsGridViewActivityWithFourByThreeGrid() {
+     void selectPieces_twelvePieces_startsGridViewActivityWithFourByThreeGrid() {
         assertSelectPiecesStartsGridView(12, 4, 3);
     }
 
     private void assertSelectPiecesStartsGridView(int piecesCount, int expectedColumns, int expectedRows) {
-        ComplexityActivity activity = newActivity(7, "alice");
+        configureIntent(7, "alice");
         View view = mock(View.class);
         when(view.getTag()).thenReturn(String.valueOf(piecesCount));
 
@@ -93,9 +103,7 @@ public class ComplexityActivityTest {
     }
 
     @Test
-    public void goHome_startsStartActivityAndFinishes() {
-        ComplexityActivity activity = newActivity(1, "bob");
-
+     void goHome_startsStartActivityAndFinishes() {
         try (MockedConstruction<Intent> mockedIntent = mockConstruction(Intent.class)) {
             activity.goHome();
 
