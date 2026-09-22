@@ -46,9 +46,6 @@ import lv.marmog.androidpuzzlegame.puzzle.TouchListener;
 public class PuzzleActivity extends AppCompatActivity {
     ArrayList<PuzzlePiece> pieces;
 
-    //floating button  for going to StartActivity
-    private FloatingActionButton goHome;
-
     //picture from camera and gallery-------------------------------------------------------------------
     String mCurrentPhotoUri;
     //-------------------------------------------------------------------picture from camera
@@ -104,7 +101,7 @@ public class PuzzleActivity extends AppCompatActivity {
         setName();
 
         //Button to go to the StartActivity
-        goHome = findViewById(R.id.goHome);
+        FloatingActionButton goHome = findViewById(R.id.go_home);
         goHome.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -114,14 +111,14 @@ public class PuzzleActivity extends AppCompatActivity {
 
         //timer-------------------------------------------------------
         //counter initializing
-        countTimer = findViewById(R.id.count_timer);
+        this.countTimer = findViewById(R.id.count_timer);
         countTimer.setText("OSec");
         timer.start();//starting timer
         //-------------------------------------------------timer
 
 
         final RelativeLayout layout = findViewById(R.id.layout);
-        final ImageView imageView = findViewById(R.id.imageView);
+        final ImageView imageView = findViewById(R.id.image_view);
         // ---- timer for getting it's height and positioning the pieces
         final TextView timer = findViewById(R.id.count_timer);
         // -------timer
@@ -320,7 +317,7 @@ public class PuzzleActivity extends AppCompatActivity {
             imageView.setImageBitmap(bitmap);
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+            Toasts.show(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT);
         }
     }
 
@@ -332,7 +329,7 @@ public class PuzzleActivity extends AppCompatActivity {
         rows = getRows();
         // ---
 
-        ImageView imageView = findViewById(R.id.imageView);
+        ImageView imageView = findViewById(R.id.image_view);
 
         ArrayList<PuzzlePiece> pieces = new ArrayList<>(piecesNumber);
 
@@ -508,15 +505,15 @@ public class PuzzleActivity extends AppCompatActivity {
     public void createNewContentDialog() {
         dialogBuilder = new AlertDialog.Builder(this);
         final View timeIsUpPopupView = getLayoutInflater().inflate(R.layout.activity_time_is_up, null);
-        newTimeIsUpText = timeIsUpPopupView.findViewById(R.id.timeIsUpText);
-        newTimeIsUpNext = timeIsUpPopupView.findViewById(R.id.timeIsUpNext);
+        newTimeIsUpText = timeIsUpPopupView.findViewById(R.id.time_is_up_text);
+        newTimeIsUpNext = timeIsUpPopupView.findViewById(R.id.time_is_up_next);
 
         dialogBuilder.setView(timeIsUpPopupView);
         dialog = dialogBuilder.create();
         dialog.show();
 
         //Button to go to the HomePage
-        goHome = findViewById(R.id.goHome);
+        FloatingActionButton goHome = findViewById(R.id.go_home);
         goHome.setOnClickListener(v -> goHome());
 
         newTimeIsUpNext.setOnClickListener(v -> {
@@ -579,7 +576,7 @@ public class PuzzleActivity extends AppCompatActivity {
 
             imageView.setImageBitmap(rotatedBitmap);
         } catch (IOException e) {
-            Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+            Toasts.show(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT);
         }
     }
 
@@ -600,7 +597,7 @@ public class PuzzleActivity extends AppCompatActivity {
     }
 
     // show username on screen
-    public void setName() {
+    private void setName() {
         TextView name = findViewById(R.id.username_puzzle);
         name.setText(getUsername());
     }

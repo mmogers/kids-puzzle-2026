@@ -5,8 +5,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,6 +15,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import lv.marmog.androidpuzzlegame.R;
 import lv.marmog.androidpuzzlegame.model.User;
@@ -24,13 +23,12 @@ import lv.marmog.androidpuzzlegame.database.UserDAO;
 
 public class CreateUsernameActivity extends AppCompatActivity {
 
-//references to buttons and other controls on the layout
-    private int usernameId;
-    private  int idToDelete;
-    private EditText user;
+    private static final String TAG = CreateUsernameActivity.class.getName();
+
+    //references to buttons and other controls on the layout
+    private int idToDelete;
+    private EditText usernameInput;
     private EditText repeatUsername;
-    private Button saveNewUsername, deleteUsername;
-    private FloatingActionButton goHome;
     private ListView usernamesListView;
     private List<User> usernames;
     private UserDAO userDAO;
@@ -40,145 +38,105 @@ public class CreateUsernameActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_username);
 
-        userDAO = new UserDAO(this);
+        this.userDAO = new UserDAO(this);
+
         //value for variable that is find by id that is created in layout
-        user = (EditText) findViewById(R.id.enter_username);
-        repeatUsername = (EditText) findViewById(R.id.repeat_username);
-        saveNewUsername = (Button) findViewById(R.id.save_username);
-        deleteUsername = (Button) findViewById(R.id.delete_username);
+        this.usernameInput = findViewById(R.id.enter_username);
+        this.repeatUsername = findViewById(R.id.repeat_username);
+        Button saveNewUsername = findViewById(R.id.save_username);
+        Button deleteUsername = findViewById(R.id.delete_username);
 
         // Button to go to the StartActivity
-        goHome = findViewById(R.id.goHome);
-        goHome.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                goHome();
-            }
-        });
-
+        FloatingActionButton goHome = findViewById(R.id.go_home);
+        goHome.setOnClickListener(v -> goHome());
 
         //creates usernamesList in current layout
-        usernamesListView = (ListView) findViewById(R.id.view_usernames_listview);
-        usernames = new ArrayList<User>(0);
+        this.usernamesListView = findViewById(R.id.view_usernames_listview);
+        this.usernames = new ArrayList<>(0);
+
         populateUsernamesList();
         //onClickListener for button to save new username in database
-        saveNewUsername.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        saveNewUsername.setOnClickListener(v -> onSaveUsernameClicked());
 
-                //variables that have to convert the field of the layout into string
-                String username = user.getText().toString();
-                String reUser = repeatUsername.getText().toString();
-                User u = new User();
-                u.setUsername(username);
-           //check if field are filled and show message if not
-                if(username.equals("") || reUser.equals("")) {
-                    Toast.makeText(CreateUsernameActivity.this, "Please enter all the field", Toast.LENGTH_SHORT).show();
-                }
-
-                //check username and repeatUsername fields if they are same
-                else{
-                    if(username.equals(reUser)){
-                        //First one if the method is taken from databaseHelper.
-                       // Boolean checkUser = db.checkUsername(username);
-                        Boolean checkUser = userDAO.checkUsername(username);
-                        //check if the username already exists, if no, than insert new username to database
-                        if(checkUser == false) {
-                          Boolean insert = userDAO.createUser(u);
-                            if (insert == true) {
-                                Toast.makeText(CreateUsernameActivity.this, "New username is created", Toast.LENGTH_LONG).show();
-                                populateUsernamesList();
-                                Intent intent = new Intent(getApplicationContext(), StartActivity.class);
-                                startActivity(intent);
-                                finish();
-                            } else {
-                                Toast.makeText(CreateUsernameActivity.this, "Registration failed", Toast.LENGTH_LONG).show();
-                            }
-                        }
-                            else{
-                                Toast.makeText(CreateUsernameActivity.this, "User already exists", Toast.LENGTH_LONG).show();
-                            }
-                    }
-                    else{
-                        Toast.makeText(CreateUsernameActivity.this, "Username not matching", Toast.LENGTH_LONG).show();
-                    }
-                }
-            }
-        });
-
-//      usernamesListView.setOnItemLongClickListener(listViewListener);
-        usernamesListView.setOnItemClickListener(listViewListener);
-
-        deleteUsername.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                    //delete only user by usernameId from TABLE_USERS
-                Log.i(CreateUsernameActivity.class.getName(), "Username id to be deleted is: " + getIdToDelete());
-                User user = new User();
-                user.setUsernameId(getIdToDelete());
-                userDAO.deleteResults(user);
-                userDAO.deleteUser(user);
-                Toast.makeText(CreateUsernameActivity.this,"User has been deleted", Toast.LENGTH_LONG).show();
-                populateUsernamesList();
-            }
-        });
-    }
-
-    private void populateUsernamesList(){
-        //Create a List of Strings
-        List<String> userStrings = new ArrayList<String>(0);
-        usernames = userDAO.getAllUsers();
-
-        for(int i = 0; i<usernames.size(); i++){
-            userStrings.add(usernames.get(i).toString());
-
-        }
-        ArrayAdapter<String> arrayAdapter =
-                new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, userStrings);
-        usernamesListView.setAdapter(arrayAdapter);
-    }
-
-//    private AdapterView.OnItemLongClickListener listViewListener = new AdapterView.OnItemLongClickListener() {
-//        @Override
-//        public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-//            usernamesListView.getSelectedItem();
-//            usernamesListView.getItemAtPosition(position);
-//            usernamesListView.setSelection(position);
-//            usernameId = usernames.get(position).getUsernameId();
-//            view.setSelected(true);
-//            Log.i(CreateUsernameActivity.class.getName(), "Username id to delete is: " + usernameId);
-//            return false;
-//        }
-//    };
-
-    private AdapterView.OnItemClickListener listViewListener = new AdapterView.OnItemClickListener() {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            usernamesListView.setSelection(position);
+        this.usernamesListView.setOnItemClickListener((parent, view, position, id) -> {
+            this.usernamesListView.setSelection(position);
             view.setSelected(true);
             //get user id of selected user
-            usernameId = usernames.get(position).getUsernameId();
-            Log.i(CreateUsernameActivity.class.getName(), "Selected username id is " + usernameId);
+            int usernameId = this.usernames.get(position).getUsernameId();
+            Log.i(TAG, "Selected username id is " + usernameId);
             setIdToDelete(usernameId);
-            Log.i(CreateUsernameActivity.class.getName(), "idToDelete is set to  " + usernameId);
+            Log.i(TAG, "idToDelete is set to  " + usernameId);
+        });
+
+        deleteUsername.setOnClickListener(v -> {
+            Log.i(TAG, "Username id to be deleted is: " + getIdToDelete());
+            User user = new User();
+            user.setUsernameId(getIdToDelete());
+            this.userDAO.deleteResults(user);
+            this.userDAO.deleteUser(user);
+            Toasts.show(this, "User has been deleted", Toast.LENGTH_LONG);
+            populateUsernamesList();
+        });
+    }
+
+    private void onSaveUsernameClicked() {
+        //variables that have to convert the field of the layout into string
+        String username = usernameInput.getText().toString();
+        String reUser = repeatUsername.getText().toString();
+
+        //check if field is filled and show message if not
+        if (username.isEmpty() || reUser.isEmpty()) {
+            Toasts.show(this, "Please enter all the fields", Toast.LENGTH_SHORT);
+            return;
         }
-    };
 
-    private int setIdToDelete(int id) {
-        idToDelete = id;
-        return idToDelete;
+        //check username and repeatUsername fields if they are the same
+        if (!username.equals(reUser)) {
+            Toasts.show(this, "Username not matching", Toast.LENGTH_LONG);
+            return;
+        }
+
+        //check if the username already exists
+        if (userDAO.checkUsername(username)) {
+            Toasts.show(this, "User already exists", Toast.LENGTH_LONG);
+            return;
+        }
+
+        User newUser = new User();
+        newUser.setUsername(username);
+        if (!userDAO.createUser(newUser)) {
+            Toasts.show(this, "Registration failed", Toast.LENGTH_LONG);
+            return;
+        }
+
+        Toasts.show(this, "New username is created", Toast.LENGTH_LONG);
+        populateUsernamesList();
+        Intent intent = new Intent(getApplicationContext(), StartActivity.class);
+        startActivity(intent);
+        finish();
     }
 
-    public int getIdToDelete() {
-        return idToDelete;
+    private void populateUsernamesList() {
+        this.usernames = userDAO.getAllUsers();
+
+        List<String> userStrings = usernames.stream()
+                .map(User::toString)
+                .collect(Collectors.toList());
+
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, R.layout.listview_element, userStrings);
+        this.usernamesListView.setAdapter(arrayAdapter);
     }
 
-//    protected void goToComplexityActivity(int id){
-//        Intent complexityActivity = new Intent(this, ComplexityActivity.class);
-//        startActivity(complexityActivity);
-//    }
+    private void setIdToDelete(int id) {
+        this.idToDelete = id;
+    }
+
+    private int getIdToDelete() {
+        return this.idToDelete;
+    }
+
     //Method to go to the StartActivity
-    public void goHome() {
+    private void goHome() {
         Intent intent = new Intent(this, StartActivity.class);
         startActivity(intent);
         finish();

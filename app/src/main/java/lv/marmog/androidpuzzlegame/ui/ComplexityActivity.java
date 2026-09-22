@@ -9,75 +9,62 @@ import android.widget.TextView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import lv.marmog.androidpuzzlegame.R;
 
 public class ComplexityActivity extends AppCompatActivity {
 
-    //Variables that is extras
-    int userId;
-    String username;
-    //Button to go to the StartActivity
-    private FloatingActionButton goHome;
+    // activity_complexity.xml plus a new entry here
+    private static final Map<Integer, GridSize> COMPLEXITY_OPTIONS = new HashMap<>();
+
+    static {
+        COMPLEXITY_OPTIONS.put(4, new GridSize(2, 2));
+        COMPLEXITY_OPTIONS.put(9, new GridSize(3, 3));
+        COMPLEXITY_OPTIONS.put(12, new GridSize(4, 3));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_complexity);
         setName();
 
         //Button to go to the StartActivity
-        goHome = findViewById(R.id.goHome);
-        goHome.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                goHome();
-            }
-        });
+        FloatingActionButton goHome = findViewById(R.id.go_home);
+        goHome.setOnClickListener(v -> goHome());
 
     }
-//Method that selects pieces for puzzle when is pressed one of the buttons
+
+    //Method that selects pieces for puzzle when is pressed one of the buttons
     public void selectPieces(View view) {
-
-        userId = getUserId();
-        username = getUsername();
-
         Intent complexityIntent = new Intent(this, GridViewActivity.class);
 
         // sending id to gridView activity
+        int userId = getUserId();
+        String username = getUsername();
         complexityIntent.putExtra(Extras.USER_ID, userId);
         complexityIntent.putExtra(Extras.USERNAME, username);
 
-
         // sending number of pieces, columns and rows from buttons to gridView activity
-        if (view == findViewById(R.id.choose4)) {
-            complexityIntent.putExtra(Extras.PIECES_COUNT, 4);
-            complexityIntent.putExtra(Extras.COLUMNS, 2);
-            complexityIntent.putExtra(Extras.ROWS, 2);
-        } else if (view == findViewById(R.id.choose9)) {
-            complexityIntent.putExtra(Extras.PIECES_COUNT, 9);
-            complexityIntent.putExtra(Extras.COLUMNS, 3);
-            complexityIntent.putExtra(Extras.ROWS, 3);
-        } else if (view == findViewById(R.id.choose12)) {
-            complexityIntent.putExtra(Extras.PIECES_COUNT, 12);
-            complexityIntent.putExtra(Extras.COLUMNS, 4);
-            complexityIntent.putExtra(Extras.ROWS, 3);
-        }
+        int piecesCount = Integer.parseInt((String) view.getTag());
+        GridSize gridSize = COMPLEXITY_OPTIONS.get(piecesCount);
+        complexityIntent.putExtra(Extras.PIECES_COUNT, piecesCount);
+        complexityIntent.putExtra(Extras.COLUMNS, gridSize.columns);
+        complexityIntent.putExtra(Extras.ROWS, gridSize.rows);
 
         startActivity(complexityIntent);
         finish();
-
     }
 
-    // --- method to get user id
     private int getUserId() {
-        userId = getIntent().getIntExtra(Extras.USER_ID, 0);
-        return userId;
+        return getIntent().getIntExtra(Extras.USER_ID, 0);
     }
 
-    // method to get username
     private String getUsername() {
-        username = getIntent().getStringExtra(Extras.USERNAME);
-        return username;
+        return getIntent().getStringExtra(Extras.USERNAME);
     }
 
     //Method to go to the StartActivity
@@ -87,8 +74,11 @@ public class ComplexityActivity extends AppCompatActivity {
         finish();
     }
 
-    public void setName() {
-        TextView name = (TextView)findViewById(R.id.username_complexity);
+    private void setName() {
+        TextView name = findViewById(R.id.username_complexity);
         name.setText(getUsername());
+    }
+
+    private record GridSize(int columns, int rows) {
     }
 }
