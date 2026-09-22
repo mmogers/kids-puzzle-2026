@@ -8,11 +8,17 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -22,7 +28,7 @@ import java.util.Arrays;
 import lv.marmog.androidpuzzlegame.database.UserDAO;
 import lv.marmog.androidpuzzlegame.model.User;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,30 +42,32 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * CreateUsernameActivity wires all of its behaviour (save/delete/list) from lambdas
- * registered in onCreate(). onCreate() itself calls super.onCreate(), which needs
- * internals (e.g. ComponentActivity's SavedStateRegistryController) that only exist
- * once the real Activity constructor has run - something we can't do here without a
- * real Android runtime (or Robolectric). So instead of going through onCreate(), these
- * tests build the activity with mock(..., CALLS_REAL_METHODS) - which skips the
- * constructor entirely - inject its collaborators directly via reflection, and invoke
- * the (private) business-logic methods directly.
- */
-public class CreateUsernameActivityTest {
+// onCreate() can't be called directly (super.onCreate() needs a real constructor), so these
+// tests inject the activity's private fields via reflection and invoke its business-logic
+// methods directly instead.
+// LENIENT: not every test uses all of setUp()'s stubs (only the "valid save" test navigates)
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+ class CreateUsernameActivityTest {
 
+    // CALLS_REAL_METHODS skips the real Activity constructor (needs a main Looper we don't have)
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
     private CreateUsernameActivity activity;
+    @Mock
     private EditText usernameInput;
+    @Mock
     private EditText repeatUsername;
+    @Mock
     private ListView usernamesListView;
+    @Mock
     private UserDAO userDAO;
+    @Mock
+    private Toast toast;
 
-    private void setUp() throws Exception {
-        activity = mock(CreateUsernameActivity.class, Answers.CALLS_REAL_METHODS);
-        usernameInput = mockEditText();
-        repeatUsername = mockEditText();
-        usernamesListView = mock(ListView.class);
-        userDAO = mock(UserDAO.class);
+    @BeforeEach
+     void setUp() throws Exception {
+        setText(usernameInput, "");
+        setText(repeatUsername, "");
 
         setField("usernameInput", usernameInput);
         setField("repeatUsername", repeatUsername);
@@ -83,12 +91,6 @@ public class CreateUsernameActivityTest {
         method.invoke(activity);
     }
 
-    private static EditText mockEditText() {
-        EditText editText = mock(EditText.class);
-        setText(editText, "");
-        return editText;
-    }
-
     private static void setText(EditText editText, String text) {
         Editable editable = mock(Editable.class);
         when(editable.toString()).thenReturn(text);
@@ -102,16 +104,14 @@ public class CreateUsernameActivityTest {
         return user;
     }
 
-    private static MockedStatic<Toast> mockToast() {
+    private MockedStatic<Toast> mockToast() {
         MockedStatic<Toast> toastMock = mockStatic(Toast.class);
-        Toast toast = mock(Toast.class);
         toastMock.when(() -> Toast.makeText(any(), anyString(), anyInt())).thenReturn(toast);
         return toastMock;
     }
 
     @Test
-    public void populateUsernamesList_loadsUsersFromDatabaseIntoTheListView() throws Exception {
-        setUp();
+     void populateUsernamesList_loadsUsersFromDatabaseIntoTheListView() throws Exception {
         when(userDAO.getAllUsers()).thenReturn(Arrays.asList(newUser(1, "alice"), newUser(2, "bob")));
 
         try (MockedConstruction<ArrayAdapter> mockedAdapter = mockConstruction(ArrayAdapter.class)) {
@@ -123,9 +123,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void onSaveUsernameClicked_showsError_whenFieldsAreEmpty() throws Exception {
-        setUp();
-
+     void onSaveUsernameClicked_showsError_whenFieldsAreEmpty() throws Exception {
         try (MockedStatic<Toast> toastMock = mockToast()) {
             invokePrivateMethod("onSaveUsernameClicked");
 
@@ -136,8 +134,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void onSaveUsernameClicked_showsError_whenUsernamesDoNotMatch() throws Exception {
-        setUp();
+     void onSaveUsernameClicked_showsError_whenUsernamesDoNotMatch() throws Exception {
         setText(usernameInput, "alice");
         setText(repeatUsername, "alicia");
 
@@ -150,8 +147,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void onSaveUsernameClicked_showsError_whenUsernameAlreadyExists() throws Exception {
-        setUp();
+     void onSaveUsernameClicked_showsError_whenUsernameAlreadyExists() throws Exception {
         setText(usernameInput, "alice");
         setText(repeatUsername, "alice");
         when(userDAO.checkUsername("alice")).thenReturn(true);
@@ -165,8 +161,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void onSaveUsernameClicked_showsError_whenCreateUserFails() throws Exception {
-        setUp();
+     void onSaveUsernameClicked_showsError_whenCreateUserFails() throws Exception {
         setText(usernameInput, "alice");
         setText(repeatUsername, "alice");
         when(userDAO.checkUsername("alice")).thenReturn(false);
@@ -181,8 +176,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void onSaveUsernameClicked_createsUserAndReturnsHome_whenValid() throws Exception {
-        setUp();
+     void onSaveUsernameClicked_createsUserAndReturnsHome_whenValid() throws Exception {
         setText(usernameInput, "newkid");
         setText(repeatUsername, "newkid");
         when(userDAO.checkUsername("newkid")).thenReturn(false);
@@ -206,9 +200,7 @@ public class CreateUsernameActivityTest {
     }
 
     @Test
-    public void goHome_startsStartActivityAndFinishes() throws Exception {
-        setUp();
-
+     void goHome_startsStartActivityAndFinishes() throws Exception {
         try (MockedConstruction<Intent> mockedIntent = mockConstruction(Intent.class)) {
             invokePrivateMethod("goHome");
 

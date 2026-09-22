@@ -10,37 +10,32 @@ import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.TABLE_TIMER;
 import static lv.marmog.androidpuzzlegame.database.DatabaseHelper.TABLE_USERS;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.database.sqlite.SQLiteDatabase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InOrder;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-// Plain JVM unit tests (no device/emulator, no Robolectric): they verify the SQL DatabaseHelper
-// issues against a mocked SQLiteDatabase - table/column names and statement ordering - rather
-// than actually executing it against a real SQLite engine. Real-engine behavior (does this SQL
-// really create the schema we expect) would need an instrumented/androidTest, deliberately
-// skipped for now since no device or emulator is set up in this environment.
-public class DatabaseHelperTest {
+// Verifies the SQL against a mocked SQLiteDatabase (no real SQLite engine, no emulator).
+@ExtendWith(MockitoExtension.class)
+ class DatabaseHelperTest {
 
-    private DatabaseHelper newHelperWithoutRunningItsConstructor() {
-        // DatabaseHelper's own constructor needs a real Context. Mockito.mock() instantiates
-        // via Objenesis without calling it, and CALLS_REAL_METHODS then runs the actual
-        // onCreate()/onUpgrade() bodies (including their private helper methods) against
-        // whichever mocked SQLiteDatabase the test passes in.
-        return mock(DatabaseHelper.class, CALLS_REAL_METHODS);
-    }
+    // CALLS_REAL_METHODS skips the real constructor (needs a real Context) while still running
+    // the actual onCreate()/onUpgrade() bodies
+    @Mock(answer = Answers.CALLS_REAL_METHODS)
+    private DatabaseHelper helper;
+    @Mock
+    private SQLiteDatabase db;
 
     @Test
-    public void onCreate_createsUsersTableBeforeTimerTable() {
-        DatabaseHelper helper = newHelperWithoutRunningItsConstructor();
-        SQLiteDatabase db = mock(SQLiteDatabase.class);
-
+     void onCreate_createsUsersTableBeforeTimerTable() {
         helper.onCreate(db);
 
         InOrder inOrder = inOrder(db);
@@ -50,10 +45,7 @@ public class DatabaseHelperTest {
     }
 
     @Test
-    public void onCreate_usersTableHasPrimaryKeyIdAndUniqueUsername() {
-        DatabaseHelper helper = newHelperWithoutRunningItsConstructor();
-        SQLiteDatabase db = mock(SQLiteDatabase.class);
-
+     void onCreate_usersTableHasPrimaryKeyIdAndUniqueUsername() {
         helper.onCreate(db);
 
         verify(db).execSQL(contains(COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT"));
@@ -61,10 +53,7 @@ public class DatabaseHelperTest {
     }
 
     @Test
-    public void onCreate_timerTableHasAResultColumnPerLevelAndUserForeignKey() {
-        DatabaseHelper helper = newHelperWithoutRunningItsConstructor();
-        SQLiteDatabase db = mock(SQLiteDatabase.class);
-
+     void onCreate_timerTableHasAResultColumnPerLevelAndUserForeignKey() {
         helper.onCreate(db);
 
         verify(db).execSQL(contains(COLUMN_TIMER_RESULT_FOR_4));
@@ -75,10 +64,7 @@ public class DatabaseHelperTest {
     }
 
     @Test
-    public void onUpgrade_dropsTimerBeforeUsers_thenRecreatesUsersBeforeTimer() {
-        DatabaseHelper helper = newHelperWithoutRunningItsConstructor();
-        SQLiteDatabase db = mock(SQLiteDatabase.class);
-
+     void onUpgrade_dropsTimerBeforeUsers_thenRecreatesUsersBeforeTimer() {
         helper.onUpgrade(db, 1, 2);
 
         InOrder inOrder = inOrder(db);

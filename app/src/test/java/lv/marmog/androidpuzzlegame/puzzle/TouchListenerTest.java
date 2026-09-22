@@ -1,10 +1,11 @@
 package lv.marmog.androidpuzzlegame.puzzle;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -18,18 +19,29 @@ import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 // PuzzlePiece/MotionEvent/ViewGroup are mocked rather than constructed for real - Android View
-// constructors need a real windowing environment this JVM-only test doesn't have. Wherever the
-// listener plays a sound, MediaPlayer.create(...) is mocked statically too (same technique as
-// SoundEffectsTest), otherwise it returns null under the unit-test stub jar and NPEs on start().
-public class TouchListenerTest {
+// constructors need a real windowing environment this JVM-only test doesn't have.
+@ExtendWith(MockitoExtension.class)
+ class TouchListenerTest {
 
-    private final Context context = mock(Context.class);
-    private final OnPieceSnappedListener listener = mock(OnPieceSnappedListener.class);
-    private final TouchListener touchListener = new TouchListener(context, listener);
+    @Mock
+    private Context context;
+    @Mock
+    private OnPieceSnappedListener listener;
+    @Mock
+    private PuzzlePiece piece;
+    @Mock
+    private ViewGroup parent;
+
+    @InjectMocks
+    private TouchListener touchListener;
 
     private static RelativeLayout.LayoutParams layoutParams(int left, int top, int width, int height) {
         RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(width, height);
@@ -40,17 +52,17 @@ public class TouchListenerTest {
         return params;
     }
 
+    // lenient(): onTouch() returns before reading these when piece.canMove is false
     private static MotionEvent motionEvent(int action, float rawX, float rawY) {
         MotionEvent event = mock(MotionEvent.class);
-        when(event.getAction()).thenReturn(action);
-        when(event.getRawX()).thenReturn(rawX);
-        when(event.getRawY()).thenReturn(rawY);
+        lenient().when(event.getAction()).thenReturn(action);
+        lenient().when(event.getRawX()).thenReturn(rawX);
+        lenient().when(event.getRawY()).thenReturn(rawY);
         return event;
     }
 
     @Test
-    public void onTouch_ignoresEvent_whenPieceCannotMove() {
-        PuzzlePiece piece = mock(PuzzlePiece.class);
+     void onTouch_ignoresEvent_whenPieceCannotMove() {
         piece.canMove = false;
 
         boolean handled = touchListener.onTouch(piece, motionEvent(MotionEvent.ACTION_DOWN, 0, 0));
@@ -60,11 +72,10 @@ public class TouchListenerTest {
     }
 
     @Test
-    public void actionDown_enlargesPieceAndBringsItToFront() {
+     void actionDown_enlargesPieceAndBringsItToFront() {
         try (MockedStatic<MediaPlayer> mediaPlayerStatic = mockStatic(MediaPlayer.class)) {
             mediaPlayerStatic.when(() -> MediaPlayer.create(any(), anyInt())).thenReturn(mock(MediaPlayer.class));
 
-            PuzzlePiece piece = mock(PuzzlePiece.class);
             piece.canMove = true;
             piece.pieceWidth = 100;
             piece.pieceHeight = 80;
@@ -80,11 +91,10 @@ public class TouchListenerTest {
     }
 
     @Test
-    public void actionMove_followsFingerUsingOffsetFromPickUpPoint() {
+     void actionMove_followsFingerUsingOffsetFromPickUpPoint() {
         try (MockedStatic<MediaPlayer> mediaPlayerStatic = mockStatic(MediaPlayer.class)) {
             mediaPlayerStatic.when(() -> MediaPlayer.create(any(), anyInt())).thenReturn(mock(MediaPlayer.class));
 
-            PuzzlePiece piece = mock(PuzzlePiece.class);
             piece.canMove = true;
             RelativeLayout.LayoutParams lParams = layoutParams(10, 20, 50, 40);
             when(piece.getLayoutParams()).thenReturn(lParams);
@@ -101,11 +111,10 @@ public class TouchListenerTest {
     }
 
     @Test
-    public void actionUp_snapsPieceIntoPlace_whenCloseEnoughToTarget() {
+     void actionUp_snapsPieceIntoPlace_whenCloseEnoughToTarget() {
         try (MockedStatic<MediaPlayer> mediaPlayerStatic = mockStatic(MediaPlayer.class)) {
             mediaPlayerStatic.when(() -> MediaPlayer.create(any(), anyInt())).thenReturn(mock(MediaPlayer.class));
 
-            PuzzlePiece piece = mock(PuzzlePiece.class);
             piece.canMove = true;
             piece.xCoord = 200;
             piece.yCoord = 300;
@@ -113,7 +122,6 @@ public class TouchListenerTest {
             when(piece.getLayoutParams()).thenReturn(lParams);
             when(piece.getWidth()).thenReturn(90);
             when(piece.getHeight()).thenReturn(60);
-            ViewGroup parent = mock(ViewGroup.class);
             when(piece.getParent()).thenReturn(parent);
 
             touchListener.onTouch(piece, motionEvent(MotionEvent.ACTION_UP, 0, 0));
@@ -128,8 +136,7 @@ public class TouchListenerTest {
     }
 
     @Test
-    public void actionUp_shrinksPieceBackAndDoesNotSnap_whenTooFarFromTarget() {
-        PuzzlePiece piece = mock(PuzzlePiece.class);
+     void actionUp_shrinksPieceBackAndDoesNotSnap_whenTooFarFromTarget() {
         piece.canMove = true;
         piece.xCoord = 200;
         piece.yCoord = 300;
