@@ -56,6 +56,7 @@ There is no lint/static-analysis or CI config in this repo currently.
 - `model/` — `User`, a plain data holder.
 - `puzzle/` — the jigsaw mechanics: `PuzzlePiece` (an `AppCompatImageView` subclass carrying its target position/size), `TouchListener` (drag/drop/snap-to-position logic, `OnPieceSnappedListener` callback), `SoundEffects` (one-shot `MediaPlayer` playback shared between drag sounds and the completion cheer).
 - `adapter/` — `AssetImageLoader` (lists/decodes puzzle source images from `assets/img/`) and `ImageAdapter` (grid of image thumbnails).
+- `exception/` — the app's own exception types (e.g. `PuzzleImagesUnavailableException`, thrown by `ImageAdapter` when `assets/img` can't be listed). Put every new custom exception here, not next to the class that throws it; keep them unchecked unless callers can genuinely recover, and always pass the original exception as `cause`.
 
 ### Screen flow
 `StartActivity` (launcher) → `CreateUsernameActivity` (create/delete users) or, picking an existing user, → `ComplexityActivity` (choose 4/9/12 pieces) → `GridViewActivity` (choose source image, or camera/gallery) → `PuzzleActivity` (the actual jigsaw) → `ScoreActivity` (shows time + best time, then either "next game" back to `ComplexityActivity` or home). Every screen after `StartActivity` carries the current `userId`/`username` forward via `Intent` extras (keys in `Extras`) and has a "go home" `FloatingActionButton` that returns to `StartActivity`, ending the current session.
