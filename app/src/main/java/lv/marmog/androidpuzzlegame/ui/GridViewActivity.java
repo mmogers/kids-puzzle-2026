@@ -1,13 +1,14 @@
 package lv.marmog.androidpuzzlegame.ui;
 
-import static java.lang.Math.abs;
-
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.annotation.NonNull;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -17,21 +18,18 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import lv.marmog.androidpuzzlegame.R;
-import lv.marmog.androidpuzzlegame.adapter.AssetImageLoader;
 import lv.marmog.androidpuzzlegame.adapter.ImageAdapter;
+import lv.marmog.androidpuzzlegame.exception.PuzzleImagesUnavailableException;
 
 public class GridViewActivity extends AppCompatActivity {
 
@@ -45,6 +43,7 @@ public class GridViewActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        restoreState(savedInstanceState);
         setContentView(R.layout.activity_grid_view);
         setName();
 
@@ -59,84 +58,123 @@ public class GridViewActivity extends AppCompatActivity {
         FloatingActionButton goHome = findViewById(R.id.go_home);
         goHome.setOnClickListener(v -> goHome());
 
+        // wired before the image-loading early return below, so camera/gallery still work
+        // when the built-in pictures can't be loaded
+        FloatingActionButton cameraButton = findViewById(R.id.camera_button);
+        cameraButton.setOnClickListener(v -> onImageFromCameraClick());
+        FloatingActionButton galleryButton = findViewById(R.id.gallery_button);
+        galleryButton.setOnClickListener(v -> onImageFromGalleryClick());
+
         Log.w(GridViewActivity.class.getName(), "User id is " + userId);
 
-        AssetImageLoader imageLoader = new AssetImageLoader(getAssets());
+        GridView grid = findViewById(R.id.grid);
+        ImageAdapter imageAdapter;
         try {
-            final String[] files = imageLoader.listImageNames();
+            imageAdapter = new ImageAdapter(this);
+        } catch (PuzzleImagesUnavailableException e) {
+            Log.e(GridViewActivity.class.getName(), "Could not load puzzle images", e);
+            Toasts.show(this, "Could not load pictures", Toast.LENGTH_SHORT);
+            return;
+        }
 
-            GridView grid = findViewById(R.id.grid);
-            grid.setAdapter(new ImageAdapter(this));
-            grid.setOnItemClickListener((adapterView, view, i, l) -> {
-                Intent intent = new Intent(getApplicationContext(), PuzzleActivity.class);
-                intent.putExtra(Extras.ASSET_NAME, files[i % files.length]);
+        grid.setAdapter(imageAdapter);
+        grid.setOnItemClickListener((adapterView, view, i, l) -> startPuzzle(Extras.ASSET_NAME, imageAdapter.getFileName(i)));
+    }
 
-                // --- put extra for complexity
-                intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
-                intent.putExtra(Extras.COLUMNS, columnsIntent);
-                intent.putExtra(Extras.ROWS, rowsIntent);
+    // Every way of choosing a picture starts the same puzzle session; only the image source differs.
+    // imageExtraKey is Extras.ASSET_NAME for a built-in picture, Extras.CURRENT_PHOTO_URI for camera/gallery.
+    private void startPuzzle(String imageExtraKey, String imageRef) {
+        Intent intent = new Intent(this, PuzzleActivity.class);
+        intent.putExtra(imageExtraKey, imageRef);
 
-                intent.putExtra(Extras.USER_ID, userId);
-                intent.putExtra(Extras.USERNAME, username);
-                Log.i(GridViewActivity.class.getName(), "Sent username is " + username);
+        // --- put extra for complexity
+        intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
+        intent.putExtra(Extras.COLUMNS, columnsIntent);
+        intent.putExtra(Extras.ROWS, rowsIntent);
 
-                startActivity(intent);
-                finish();
-            });
-        } catch (IOException e) {
-            Toasts.show(this, e.getLocalizedMessage(), Toast.LENGTH_SHORT);
+        intent.putExtra(Extras.USER_ID, userId);
+        intent.putExtra(Extras.USERNAME, username);
+        Log.i(GridViewActivity.class.getName(), "Sent username is " + username);
+
+        startActivity(intent);
+        finish();
+    }
+
+    //picture from camera
+    private static final String STATE_CURRENT_PHOTO_URI = "currentPhotoUri";
+    // must survive process death while the camera app is in front, otherwise cameraLauncher's
+    // callback can neither open the taken photo nor delete the empty MediaStore row on cancel
+    private Uri currentPhotoUri;
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        saveState(outState);
+    }
+
+    private void saveState(Bundle outState) {
+        if (currentPhotoUri != null) {
+            outState.putString(STATE_CURRENT_PHOTO_URI, currentPhotoUri.toString());
         }
     }
 
-    //picture from camera-------------------------------------------------------------------
-    private Uri currentPhotoUri;
+    private void restoreState(Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return;
+        }
+        String savedUri = savedInstanceState.getString(STATE_CURRENT_PHOTO_URI);
+        currentPhotoUri = savedUri != null ? Uri.parse(savedUri) : null;
+    }
 
     private final ActivityResultLauncher<String> requestReadImagesPermission =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-                if (granted) {
+                if (Boolean.TRUE.equals(granted)) {
                     launchGalleryPicker();
                 }
             });
 
     private final ActivityResultLauncher<String> requestWriteStoragePermission =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-                if (granted) {
+                if (Boolean.TRUE.equals(granted)) {
                     launchCamera();
                 }
             });
 
     private final ActivityResultLauncher<Intent> cameraLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == RESULT_OK && currentPhotoUri != null) {
-                    Intent intent = new Intent(this, PuzzleActivity.class);
-                    intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
-                    intent.putExtra(Extras.COLUMNS, columnsIntent);
-                    intent.putExtra(Extras.ROWS, rowsIntent);
-                    intent.putExtra(Extras.USER_ID, userId);
-                    intent.putExtra(Extras.USERNAME, username);
-                    intent.putExtra(Extras.CURRENT_PHOTO_URI, currentPhotoUri.toString());
-                    startActivity(intent);
-                    finish();
-                }
-            });
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::onCameraResult);
+
+    private void onCameraResult(ActivityResult result) {
+        if (currentPhotoUri == null) {
+            return;
+        }
+        if (result.getResultCode() == RESULT_OK) {
+            startPuzzle(Extras.CURRENT_PHOTO_URI, currentPhotoUri.toString());
+        }
+        else {
+            // capture was cancelled: don't leave an empty JPEG_... entry in the user's gallery
+            deleteUnusedPhotoEntry(currentPhotoUri);
+            currentPhotoUri = null;
+        }
+    }
 
     private final ActivityResultLauncher<Intent> galleryLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    Uri uri = result.getData().getData();
-                    Intent intent = new Intent(this, PuzzleActivity.class);
-                    intent.putExtra(Extras.PIECES_COUNT, piecesIntent);
-                    intent.putExtra(Extras.COLUMNS, columnsIntent);
-                    intent.putExtra(Extras.ROWS, rowsIntent);
-                    intent.putExtra(Extras.USER_ID, userId);
-                    intent.putExtra(Extras.USERNAME, username);
-                    intent.putExtra(Extras.CURRENT_PHOTO_URI, uri.toString());
-                    startActivity(intent);
-                    finish();
-                }
-            });
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::onGalleryResult);
 
-    public void onImageFromCameraClick(View view) {
+    private void onGalleryResult(ActivityResult result) {
+        if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+            return;
+        }
+        Uri uri = result.getData().getData();
+        // some pickers answer RESULT_OK without a data URI (e.g. result only in ClipData)
+        if (uri == null) {
+            Log.w(GridViewActivity.class.getName(), "Gallery picker returned RESULT_OK without an image URI");
+            Toasts.show(this, "Could not open picture", Toast.LENGTH_SHORT);
+            return;
+        }
+        startPuzzle(Extras.CURRENT_PHOTO_URI, uri.toString());
+    }
+
+    private void onImageFromCameraClick() {
         if (new Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(getPackageManager()) == null) {
             return;
         }
@@ -158,21 +196,39 @@ public class GridViewActivity extends AppCompatActivity {
         }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         intent.putExtra(MediaStore.EXTRA_OUTPUT, currentPhotoUri);
-        cameraLauncher.launch(intent);
+        try {
+            cameraLauncher.launch(intent);
+        } catch (ActivityNotFoundException e) {
+            // camera app disappeared/was disabled after onImageFromCameraClick()'s resolveActivity() check
+            Log.w(GridViewActivity.class.getName(), "No camera app to handle ACTION_IMAGE_CAPTURE", e);
+            deleteUnusedPhotoEntry(currentPhotoUri);
+            currentPhotoUri = null;
+            Toasts.show(this, "Camera is not available", Toast.LENGTH_SHORT);
+        }
+    }
+
+    // Removes the MediaStore row created by createImageUri() when no photo ended up in it.
+    private void deleteUnusedPhotoEntry(Uri uri) {
+        try {
+            getContentResolver().delete(uri, null, null);
+        } catch (SecurityException e) {
+            // best-effort cleanup: an empty gallery entry is harmless, crashing is not
+            Log.w(GridViewActivity.class.getName(), "Could not delete unused photo entry " + uri, e);
+        }
     }
 
     private Uri createImageUri() {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         ContentValues values = new ContentValues();
-        values.put(MediaStore.Images.Media.DISPLAY_NAME, "JPEG_" + timeStamp + ".jpg");
-        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "JPEG_" + timeStamp + ".jpg");
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/KidsPuzzle");
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/KidsPuzzle");
         }
         return getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
     }
 
-    public void onImageFromGalleryClick(View view) {
+    private void onImageFromGalleryClick() {
         String readImagesPermission = readImagesPermissionForThisDevice();
         if (ContextCompat.checkSelfPermission(this, readImagesPermission) != PackageManager.PERMISSION_GRANTED) {
             requestReadImagesPermission.launch(readImagesPermission);
@@ -182,8 +238,6 @@ public class GridViewActivity extends AppCompatActivity {
         }
     }
 
-    // Android 13 (API 33) replaced READ_EXTERNAL_STORAGE with granular media permissions;
-    // apps targeting 33+ must request READ_MEDIA_IMAGES instead for gallery access to work.
     private static String readImagesPermissionForThisDevice() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 ? Manifest.permission.READ_MEDIA_IMAGES

@@ -10,6 +10,7 @@ import android.widget.ImageView;
 import java.io.IOException;
 
 import lv.marmog.androidpuzzlegame.R;
+import lv.marmog.androidpuzzlegame.exception.PuzzleImagesUnavailableException;
 
 // Feeds the puzzle-source-image grid on the "choose a picture" screen.
 public class ImageAdapter extends BaseAdapter {
@@ -25,13 +26,17 @@ public class ImageAdapter extends BaseAdapter {
         } catch (IOException e) {
             // fail fast here instead of leaving `files` null and crashing later with a
             // confusing NPE from getCount()/getView() far away from the real cause
-            throw new RuntimeException("Could not list puzzle images in assets/img", e);
+            throw new PuzzleImagesUnavailableException("Could not list puzzle images in assets/img", e);
         }
     }
 
     @Override
     public int getCount() {
         return files.length;
+    }
+
+    public String getFileName(int position) {
+        return files[position];
     }
 
     @Override
